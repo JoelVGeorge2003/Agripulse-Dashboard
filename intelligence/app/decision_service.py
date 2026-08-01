@@ -42,7 +42,7 @@ def score_risks(context: DecisionContext) -> RiskResponse:
         RiskScore(key="water_stress", label="Water stress", score=water, explanation=f"Forecast water balance is {rain - et:+.2f} in; maximum temperature is {hottest:.0f}°F."),
         RiskScore(key="heat_stress", label="Heat stress", score=heat, explanation=f"Forecast maximum of {hottest:.0f}°F is compared with a {heat_threshold}°F {context.crop_name} screening threshold."),
         RiskScore(key="flood", label="Flood", score=flood, explanation=f"The forecast contains {rain:.2f} in across {wet_days} materially wet day(s)."),
-        RiskScore(key="disease", label="Disease", score=disease, explanation=f"Humidity is {context.relative_humidity_percent:.0f}% with {wet_days} wet day(s), used as a leaf-wetness proxy."),
+        RiskScore(key="disease", label="Disease", score=disease, explanation=f"Humidity is {context.relative_humidity_percent:.0f}% with {wet_days} wet day(s), indicating leaf-wetness conditions."),
         RiskScore(key="harvest_delay", label="Harvest delay", score=harvest, explanation=f"Rainfall and field-access risk are estimated from {rain:.2f} in over seven days."),
     ]
     missing = sum(value is None for value in [context.soil_moisture, context.crop_price, context.yield_per_acre])
