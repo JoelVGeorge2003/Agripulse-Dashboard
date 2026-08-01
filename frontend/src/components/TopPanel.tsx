@@ -33,7 +33,7 @@ export function TopPanel({ commodities, dataAsOf }: TopPanelProps) {
           <span className="brand-mark"><Sprout size={23} /></span>
           <div>
             <p className="brand-name">AgriPulse</p>
-            <p className="brand-tagline">U.S. crop intelligence dashboard by Joel V George</p>
+            <p className="brand-tagline">by Joel V George</p>
           </div>
         </div>
         <div className="current-time">
