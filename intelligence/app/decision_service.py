@@ -51,7 +51,7 @@ def score_risks(context: DecisionContext) -> RiskResponse:
         inputs={"rainfallInches": round(rain, 3), "evapotranspirationInches": round(et, 3), "maximumTemperatureF": hottest, "humidityPercent": context.relative_humidity_percent, "soilMoisture": soil, "cropStage": context.crop_stage},
         rules_used=["Deterministic v1 thresholds combine seven-day rain, reference evapotranspiration, heat, humidity, soil moisture and crop stage.", "Every score is clamped to 0–100; no machine-learning prediction is used."],
         sources=sources(context),
-        limitations=["State representative weather is not field-level weather.", "Humidity and rainfall are proxies for disease and field-access conditions.", "A local soil reading and crop growth stage improve confidence."],
+        limitations=["State representative weather is not field-level weather.", "Humidity and rainfall provide indirect disease and field-access indicators.", "A local soil reading and crop growth stage improve confidence."],
     )
     return RiskResponse(risks=risks, confidence=confidence, explainability=explainability)
 
