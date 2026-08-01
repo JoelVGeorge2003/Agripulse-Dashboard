@@ -16,9 +16,18 @@ const profiles = [
   { slug: "cotton", name: "Cotton", color: "#9b87b3", hsCode: "5201" }
 ] as const;
 
-const codeKeys = ["commodityCode", "CommodityCode", "hS6Code", "hs6Code", "HS6Code", "hsCode", "HTSCode"];
+const codeKeys = ["commodityCode", "CommodityCode", "hS10Code", "hs10Code", "HS10Code", "hS6Code", "hs6Code", "HS6Code", "hsCode", "HTSCode"];
 const valueKeys = ["tradeValue", "TradeValue", "value", "Value", "primaryValue", "customsValue", "CustomsValue"];
 const quantityKeys = ["quantity1", "quantity", "Quantity", "netWeight", "NetWeight", "netWgt", "metricTons", "MetricTons"];
+
+// Largest and most relevant U.S. agricultural trading partners. GATS's Census
+// feed is partner/month based; the older US UN-Comtrade reporter query returns
+// no U.S. records. This bounded list keeps the live request reliable while
+// covering the principal crop-trade destinations and origins.
+const majorPartnerCodes = [
+  "CA", "MX", "CH", "JA", "KS", "TW", "UK", "GM", "NL", "SP", "IT", "FR",
+  "BE", "IN", "ID", "TH", "VM", "BR", "AR", "CI", "CO", "AS", "NZ", "EG"
+] as const;
 
 function field(row: GatsRecord, keys: string[]): unknown {
   return keys.map((key) => row[key]).find((value) => value !== undefined && value !== null);
@@ -57,8 +66,8 @@ export class TradeService {
     return url;
   }
 
-  private async request(flow: "Imports" | "Exports", year: number): Promise<GatsRecord[]> {
-    const response = await fetch(this.apiUrl(`/api/gats/UNTrade${flow}/reporterCode/US/year/${year}`), {
+  private async requestPartner(flow: "Imports" | "Exports", partnerCode: string, year: number, month: number): Promise<GatsRecord[]> {
+    const response = await fetch(this.apiUrl(`/api/gats/census${flow}/partnerCode/${partnerCode}/year/${year}/month/${String(month).padStart(2, "0")}`), {
       headers: { Accept: "application/json" },
       signal: AbortSignal.timeout(30_000)
     });
@@ -69,20 +78,37 @@ export class TradeService {
     return records(await response.json());
   }
 
+  private async latestPeriod(): Promise<{ year: number; month: number }> {
+    const now = new Date();
+    for (let offset = 0; offset < 18; offset += 1) {
+      const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - offset, 1));
+      const rows = await this.requestPartner("Exports", "MX", date.getUTCFullYear(), date.getUTCMonth() + 1);
+      if (rows.length) return { year: date.getUTCFullYear(), month: date.getUTCMonth() + 1 };
+    }
+    throw new Error("USDA FAS GATS returned no recent U.S. Census crop-trade period.");
+  }
+
+  private async periodRecords(flow: "Imports" | "Exports", year: number, month: number): Promise<GatsRecord[]> {
+    const results = await Promise.allSettled(
+      majorPartnerCodes.map((partner) => this.requestPartner(flow, partner, year, month))
+    );
+    const rows = results.flatMap((result) => result.status === "fulfilled" ? result.value : []);
+    if (!rows.length) throw new Error(`USDA FAS GATS returned no ${flow.toLowerCase()} records for ${year}-${String(month).padStart(2, "0")}.`);
+    return rows;
+  }
+
   async getCropTrade(): Promise<CropTradeFlow[]> {
     if (cache && cache.expiresAt > Date.now()) return cache.value;
     if (!(env.GATS_API_KEY || env.GATS_API)) {
       throw new Error("GATS_API_KEY is not configured. Create a USDA FAS Open Data API key and add it to backend/.env.");
     }
 
-    let year = 0;
-    let exports: GatsRecord[] = [];
-    for (let candidate = new Date().getUTCFullYear() - 1; candidate >= 2010; candidate -= 1) {
-      exports = await this.request("Exports", candidate);
-      if (exports.length) { year = candidate; break; }
-    }
-    if (!year) throw new Error("USDA FAS GATS returned no U.S. annual export records from 2010 onward.");
-    const imports = await this.request("Imports", year);
+    const { year, month } = await this.latestPeriod();
+    const [exports, imports] = await Promise.all([
+      this.periodRecords("Exports", year, month),
+      this.periodRecords("Imports", year, month)
+    ]);
+    const tradePeriod = `${year}-${String(month).padStart(2, "0")}`;
 
     const productionRows = await prisma.productionRecord.findMany({
       where: { source: "USDA NASS Quick Stats", commodity: { slug: { in: profiles.map(({ slug }) => slug) } } },
@@ -107,6 +133,8 @@ export class TradeService {
       const tradeTotal = exported.value + imported.value;
       return {
         commoditySlug: profile.slug, commodityName: profile.name, color: profile.color, hsCode: profile.hsCode, year,
+        tradePeriod,
+        coverage: `${majorPartnerCodes.length} major U.S. agricultural trading partners`,
         exportValueUsd: exported.value, importValueUsd: imported.value, balanceUsd: exported.value - imported.value,
         exportQuantityKg: exported.quantity, importQuantityKg: imported.quantity,
         yieldValue: acresHarvested && acresHarvested > 0 ? productionQuantity / acresHarvested : null,
@@ -115,7 +143,7 @@ export class TradeService {
         exportTradeSharePercent: tradeTotal > 0 ? (exported.value / tradeTotal) * 100 : 0,
         averagePriceUsd: revenueUsd !== null && productionQuantity > 0 ? revenueUsd / productionQuantity : null,
         averagePriceUnit: revenueUsd !== null && latestRows[0] ? `USD / ${latestRows[0].unit.toLowerCase().replace(/s$/, "")}` : null,
-        productionYear, source: "USDA FAS GATS",
+        productionYear, source: "USDA FAS GATS Census feed",
         sourceUrl: "https://apps.fas.usda.gov/gats/default.aspx?publish=1"
       } satisfies CropTradeFlow;
     }).filter((item) => item.exportValueUsd > 0 || item.importValueUsd > 0);

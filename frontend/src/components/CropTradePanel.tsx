@@ -42,11 +42,11 @@ export function CropTradePanel({ trade, isLoading, error }: CropTradePanelProps)
             <td>{money(item.importValueUsd)}</td>
             <td>{item.exportTradeSharePercent.toFixed(1)}%<small>of total trade</small></td>
             <td>{item.averagePriceUsd === null ? "N/A" : `$${item.averagePriceUsd.toFixed(2)}`}<small>{item.averagePriceUnit ?? ""}</small></td>
-            <td><span>Trade {item.year}</span><small>Production {item.productionYear ?? "N/A"}</small><a href={item.sourceUrl} target="_blank" rel="noreferrer">{item.source} <ExternalLink size={11} /></a></td>
+            <td><span>Trade {item.tradePeriod}</span><small>{item.coverage}</small><small>Production {item.productionYear ?? "N/A"}</small><a href={item.sourceUrl} target="_blank" rel="noreferrer">{item.source} <ExternalLink size={11} /></a></td>
           </tr>)}</tbody>
         </table></div>
         : <p className="trade-empty">No official trade records are currently available.</p>}
-      <footer>USDA NASS supplies production, acreage, yield, revenue, and average-price inputs. USDA FAS GATS supplies U.S. import and export values. Export share means exports ÷ (exports + imports), not global market share.</footer>
+      <footer>USDA NASS supplies production, acreage, yield, revenue, and average-price inputs. USDA FAS GATS supplies monthly U.S. Census import and export values for the major partners shown. Export share means exports ÷ (exports + imports) within this coverage, not global market share.</footer>
     </section>
   );
 }

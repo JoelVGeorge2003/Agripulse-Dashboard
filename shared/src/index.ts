@@ -88,6 +88,8 @@ export interface CropTradeFlow {
   color: string;
   hsCode: string;
   year: number;
+  tradePeriod: string;
+  coverage: string;
   exportValueUsd: number;
   importValueUsd: number;
   balanceUsd: number;
