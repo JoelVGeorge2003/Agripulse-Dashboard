@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: agripulse-intelligence-joel
+    runtime: docker
+    plan: free
+    rootDir: intelligence
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: CHAT_PROVIDER
+        value: ollama
+      - key: OLLAMA_BASE_URL
+        value: http://127.0.0.1:9
+      - key: OLLAMA_TIMEOUT_SECONDS
+        value: "2"
+
+  - type: web
+    name: agripulse-api-joel
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: INTELLIGENCE_SERVICE_URL
+        value: https://agripulse-intelligence-joel.onrender.com
+      - key: INTELLIGENCE_TIMEOUT_MS
+        value: "120000"
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: ADMIN_API_KEY
+        generateValue: true
+      - key: NASS_API_KEY
+        sync: false
+      - key: GATS_API_KEY
+        sync: false
+      - key: SYNC_INTERVAL_MINUTES
+        value: "0"
