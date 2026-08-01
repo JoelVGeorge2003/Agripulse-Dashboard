@@ -66,6 +66,18 @@ def clamp(value: float) -> int:
     return max(0, min(100, round(value)))
 
 
+def impact_text(impact: dict) -> str:
+    labels = {
+        "riskReduction": "Risk reduction", "waterSavingsPercent": "Estimated water savings",
+        "riskAvoided": "Risk avoided",
+    }
+    parts = []
+    for key, value in impact.items():
+        rendered = f"{value}%" if key.endswith("Percent") and isinstance(value, (int, float)) else str(value)
+        parts.append(f"{labels.get(key, key)}: {rendered}")
+    return "; ".join(parts)
+
+
 def sources(context: DecisionContext) -> list[dict]:
     result = [{"name": "Open-Meteo seven-day forecast", "url": "https://open-meteo.com/"}]
     region = regional_profile(context.state_code)
@@ -189,6 +201,8 @@ async def copilot(request: CopilotRequest) -> CopilotResponse:
     region = regional_profile(request.context.state_code)
     retrieval_query = f"{request.question} {region['name']} {request.context.state_name} {request.context.crop_name} irrigation harvest drought heat flood disease market"
     retrieved = await search(retrieval_query, request.context.crop_slug, request.context.state_code, 5)
+    regional_results = [item for item in retrieved.results if region["name"].lower() in item.title.lower()]
+    retrieved.results = regional_results[:3]
     question = request.question.lower()
     explanation = rec.reason
     if "sell" in question:
@@ -234,11 +248,13 @@ async def copilot(request: CopilotRequest) -> CopilotResponse:
             cited_ids = [item.chunk_id for item in retrieved.results[:2]]
         action = str(model_result.get("recommendedAction") or action)
         explanation = str(model_result.get("explanation") or explanation)
-        expected = str(model_result.get("expectedBenefitOrRisk") or json.dumps(rec.estimated_impact))
+        expected = str(model_result.get("expectedBenefitOrRisk") or impact_text(rec.estimated_impact))
         alternative = str(model_result.get("alternativeAction") or rec.alternative_action)
         retrieved_sources = [{"name": item.title, "url": item.source_url, "chunkId": item.chunk_id} for item in retrieved.results if item.chunk_id in cited_ids]
     except Exception:
-        expected, alternative = json.dumps(rec.estimated_impact), rec.alternative_action
+        cited_ids = [item.chunk_id for item in retrieved.results[:2]]
+        retrieved_sources = [{"name": item.title, "url": item.source_url, "chunkId": item.chunk_id} for item in retrieved.results[:2]]
+        expected, alternative = impact_text(rec.estimated_impact), rec.alternative_action
     answer = {"recommendedAction": action, "explanation": explanation, "expectedBenefitOrRisk": expected, "alternativeAction": alternative}
     evaluation = evaluate_copilot_answer(request.question, answer, request.context, rec, [item.model_dump(by_alias=True) for item in retrieved.results], cited_ids, generated_by, baseline_action)
     return CopilotResponse(recommended_action=action, explanation=explanation, confidence=rec.confidence, expected_benefit_or_risk=expected, alternative_action=alternative, data_sources=rec.explainability.sources + retrieved_sources, limitations=rec.explainability.limitations, recommendation_id=rec.recommendation_id, generated_by=generated_by, model=model, retrieved_chunks=len(retrieved.results), evaluation=evaluation)
