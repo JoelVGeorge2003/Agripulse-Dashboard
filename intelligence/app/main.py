@@ -66,7 +66,7 @@ async def health() -> dict[str, str]:
         # hosted LLM is unavailable. Keep provider detail explicit while
         # reporting the intelligence service itself as online.
         "model_status": "online",
-        "model_provider": "ollama" if model_status == "online" else "fallback",
+        "model_provider": "ollama" if model_status == "online" else "agripulse-local",
     }
 
 

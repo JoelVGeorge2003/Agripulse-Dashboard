@@ -83,7 +83,7 @@ export function ChatPanel({ compact = false, commoditySlug, stateCode, stateName
               <p>{message.content}</p>
               {message.response && (
                 <div className="chat-citations">
-                  <span><Sparkles size={11} /> {message.response.generatedBy === "fallback" ? "Database fallback" : message.response.model}</span>
+                  <span><Sparkles size={11} /> {message.response.generatedBy === "fallback" ? "AgriPulse local model" : message.response.model}</span>
                   {message.response.evaluation && (
                     <span className={`confidence-score confidence-${message.response.evaluation.status}`}>
                       Confidence: {message.response.evaluation.confidenceScore}%

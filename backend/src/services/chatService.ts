@@ -88,7 +88,7 @@ export class ChatService {
           : `the state production value is $${requested.totalValueUsd.toLocaleString()}`;
         return {
           answer: `${detail.stateName} produced ${requested.value.toLocaleString()} ${requested.unit} of ${requested.commodityName} in ${requested.year}; ${valueText}.${requested.unitPriceUsd === null ? "" : ` The implied unit value is $${requested.unitPriceUsd.toFixed(2)} per ${requested.unit.toLowerCase()}.`} This answer uses USDA NASS records stored in AgriPulse.`,
-          model: "database-fallback",
+          model: "agripulse-local",
           generatedBy: "fallback",
           citations: [{
             label: `${detail.stateName} ${requested.commodityName}`,
@@ -101,7 +101,7 @@ export class ChatService {
         const commodity = await commodityRepository.findByIdOrSlug(commoditySlug);
         return {
           answer: `No stored USDA NASS ${commodity?.name ?? commoditySlug} production record is available for ${detail.stateName}.`,
-          model: "database-fallback",
+          model: "agripulse-local",
           generatedBy: "fallback",
           citations: [],
           asOf: String(detail.year)
@@ -114,7 +114,7 @@ export class ChatService {
         : "";
       return {
           answer: `${detail.stateName}'s leading stored crop is ${top.commodityName}: ${top.value.toLocaleString()} ${top.unit} in ${top.year}.${otherText}`,
-        model: "database-fallback",
+        model: "agripulse-local",
         generatedBy: "fallback",
         citations: detail.production.slice(0, 4).map((item) => ({
           label: `${detail.stateName} ${item.commodityName}`,
@@ -140,7 +140,7 @@ export class ChatService {
           : " No production records are available.";
         return {
           answer: `${priceText}${productionText}`,
-          model: "database-fallback",
+          model: "agripulse-local",
           generatedBy: "fallback",
           citations: [
             ...(latestPrice ? [{ label: `${commodity.name} price`, value: `${latestPrice.value.toFixed(2)} ${latestPrice.unit} (${latestPrice.priceDate.slice(0, 10)})` }] : []),
@@ -155,7 +155,7 @@ export class ChatService {
     if (!prices.length) {
       return {
         answer: "No agricultural records are available. Seed or synchronise the database first.",
-        model: "database-fallback",
+        model: "agripulse-local",
         generatedBy: "fallback",
         citations: [],
         asOf: new Date().toISOString()
@@ -163,7 +163,7 @@ export class ChatService {
     }
     return {
       answer: `Latest stored national observations: ${prices.map((item) => `${item.commodityName} ${item.value.toFixed(2)} ${item.unit}`).join("; ")}. Check each observation date before treating it as current market information.`,
-      model: "database-fallback",
+      model: "agripulse-local",
       generatedBy: "fallback",
       citations: prices.map((item) => ({
         label: `${item.commodityName} price`,

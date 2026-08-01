@@ -248,7 +248,7 @@ async def answer_chat(request: ChatRequest) -> ChatResponse:
         result = evaluate_answer(request.message, answer, context, citations, "fallback")
         return ChatResponse(
             answer=answer,
-            model="database-fallback",
+            model="agripulse-local",
             generated_by="fallback",
             citations=citations,
             as_of=as_of,
@@ -301,13 +301,13 @@ async def answer_chat(request: ChatRequest) -> ChatResponse:
                 generated_by = "ollama"
         except Exception:
             answer = fallback_answer(context)
-            model = "database-fallback"
+            model = "agripulse-local"
             generated_by = "fallback"
 
     result = evaluate_answer(request.message, answer, context, citations, generated_by)
     if result.should_fallback:
         answer = fallback_answer(context)
-        model = "database-fallback"
+        model = "agripulse-local"
         generated_by = "fallback"
         result = evaluate_answer(request.message, answer, context, citations, generated_by)
 
