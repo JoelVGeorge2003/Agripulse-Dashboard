@@ -5,7 +5,45 @@ import type { CopilotDecisionResponse, DecisionOverview, ScenarioChanges, Scenar
 
 const initialChanges: ScenarioChanges = { rainfallPercent: 0, temperatureF: 0, cropPricePercent: 0, fuelCostPercent: 0, fertilizerCostPercent: 0 };
 
-export function DecisionSupportPanel({ stateCode, cropSlug }: { stateCode: string; cropSlug?: string }) {
+type CropOption = { slug: string; name: string };
+type CyclePhase = { stage: string; label: string; timing: string };
+
+const defaultCycle: CyclePhase[] = [
+  { stage: "planting", label: "Planting & emergence", timing: "Days 0–14" },
+  { stage: "vegetative", label: "Vegetative growth", timing: "Days 15–55" },
+  { stage: "reproductive", label: "Flowering & reproduction", timing: "Days 56–90" },
+  { stage: "maturity", label: "Maturity", timing: "Days 91–120" },
+  { stage: "harvest", label: "Harvest window", timing: "Days 121+" }
+];
+
+const cropCycles: Record<string, CyclePhase[]> = {
+  corn: [
+    { stage: "planting", label: "Planting & emergence", timing: "Days 0–10" }, { stage: "vegetative", label: "Vegetative V1–VT", timing: "Days 11–60" },
+    { stage: "reproductive", label: "Silking & grain fill", timing: "Days 61–105" }, { stage: "maturity", label: "Physiological maturity", timing: "Days 106–125" }, { stage: "harvest", label: "Harvest window", timing: "Days 126–160" }
+  ],
+  soybeans: [
+    { stage: "planting", label: "Planting & emergence", timing: "Days 0–10" }, { stage: "vegetative", label: "Vegetative V stages", timing: "Days 11–40" },
+    { stage: "reproductive", label: "Flowering & pod fill", timing: "Days 41–105" }, { stage: "maturity", label: "Seed maturity", timing: "Days 106–130" }, { stage: "harvest", label: "Harvest window", timing: "Days 131–155" }
+  ],
+  wheat: [
+    { stage: "planting", label: "Seeding & emergence", timing: "Days 0–14" }, { stage: "vegetative", label: "Tillering & stem growth", timing: "Days 15–100" },
+    { stage: "reproductive", label: "Heading & grain fill", timing: "Days 101–140" }, { stage: "maturity", label: "Ripening", timing: "Days 141–165" }, { stage: "harvest", label: "Harvest window", timing: "Days 166+" }
+  ],
+  cotton: [
+    { stage: "planting", label: "Planting & emergence", timing: "Days 0–12" }, { stage: "vegetative", label: "Seedling & squaring", timing: "Days 13–55" },
+    { stage: "reproductive", label: "Flowering & boll fill", timing: "Days 56–120" }, { stage: "maturity", label: "Boll opening", timing: "Days 121–155" }, { stage: "harvest", label: "Harvest window", timing: "Days 156–190" }
+  ],
+  rice: [
+    { stage: "planting", label: "Planting & establishment", timing: "Days 0–20" }, { stage: "vegetative", label: "Tillering", timing: "Days 21–60" },
+    { stage: "reproductive", label: "Panicle & heading", timing: "Days 61–100" }, { stage: "maturity", label: "Grain ripening", timing: "Days 101–130" }, { stage: "harvest", label: "Harvest window", timing: "Days 131–155" }
+  ],
+  potatoes: [
+    { stage: "planting", label: "Planting & emergence", timing: "Days 0–25" }, { stage: "vegetative", label: "Canopy & tuber initiation", timing: "Days 26–55" },
+    { stage: "reproductive", label: "Tuber bulking", timing: "Days 56–100" }, { stage: "maturity", label: "Vine senescence", timing: "Days 101–125" }, { stage: "harvest", label: "Harvest window", timing: "Days 126–150" }
+  ]
+};
+
+export function DecisionSupportPanel({ stateCode, cropSlug, crops = [] }: { stateCode: string; cropSlug?: string; crops?: CropOption[] }) {
   const [overview, setOverview] = useState<DecisionOverview | null>(null);
   const [scenario, setScenario] = useState<ScenarioResult | null>(null);
   const [copilot, setCopilot] = useState<CopilotDecisionResponse | null>(null);
@@ -17,20 +55,23 @@ export function DecisionSupportPanel({ stateCode, cropSlug }: { stateCode: strin
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [feedbackSent, setFeedbackSent] = useState(false);
+  const [selectedCrop, setSelectedCrop] = useState(cropSlug);
+
+  useEffect(() => { setSelectedCrop(cropSlug); }, [stateCode, cropSlug]);
 
   useEffect(() => {
     let active = true; setLoading(true); setError(null); setScenario(null); setCopilot(null); setFeedbackSent(false);
-    decisionApi.overview(stateCode, cropSlug, acres, stage).then((value) => { if (active) setOverview(value); }).catch((requestError) => { if (active) setError(requestError instanceof Error ? requestError.message : "Decision request failed."); }).finally(() => { if (active) setLoading(false); });
+    decisionApi.overview(stateCode, selectedCrop, acres, stage).then((value) => { if (active) setOverview(value); }).catch((requestError) => { if (active) setError(requestError instanceof Error ? requestError.message : "Decision request failed."); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [stateCode, cropSlug]);
+  }, [stateCode, selectedCrop]);
 
   async function runScenario(event: FormEvent) {
     event.preventDefault(); setLoading(true); setError(null);
-    try { setScenario(await decisionApi.scenario(stateCode, cropSlug, acres, stage, changes)); } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Scenario failed."); } finally { setLoading(false); }
+    try { setScenario(await decisionApi.scenario(stateCode, selectedCrop, acres, stage, changes)); } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Scenario failed."); } finally { setLoading(false); }
   }
   async function askCopilot(event: FormEvent) {
     event.preventDefault(); if (!question.trim()) return; setLoading(true); setError(null);
-    try { setCopilot(await decisionApi.copilot(stateCode, cropSlug, acres, stage, question)); } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Copilot request failed."); } finally { setLoading(false); }
+    try { setCopilot(await decisionApi.copilot(stateCode, selectedCrop, acres, stage, question)); } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Copilot request failed."); } finally { setLoading(false); }
   }
   function updateChange(key: keyof ScenarioChanges, value: string) { setChanges((current) => ({ ...current, [key]: Number(value) || 0 })); }
   async function feedback(helpful: boolean) {
@@ -39,9 +80,11 @@ export function DecisionSupportPanel({ stateCode, cropSlug }: { stateCode: strin
   }
 
   const recommendation = overview?.recommendation;
+  const cycle = cropCycles[selectedCrop ?? ""] ?? defaultCycle;
   return <section className="decision-panel dashboard-panel">
     <header className="section-heading"><div><p className="section-kicker">Farmer Copilot · decision intelligence</p><h2>{overview ? `${overview.stateName} ${overview.cropName} operating brief` : "Operating brief"}</h2><span>Rule-based field risks, one next action, scenario sensitivity, and explainability.</span></div><span className="section-icon"><Gauge size={20} /></span></header>
-    <div className="decision-controls"><label>Acres<input type="number" min="1" value={acres} onChange={(event) => setAcres(Number(event.target.value) || 1)} /></label><label>Crop stage<select value={stage} onChange={(event) => setStage(event.target.value)}><option value="unspecified">Unspecified</option><option value="planting">Planting</option><option value="vegetative">Vegetative</option><option value="reproductive">Reproductive</option><option value="maturity">Maturity</option><option value="harvest">Harvest</option></select></label><button onClick={() => decisionApi.overview(stateCode, cropSlug, acres, stage).then(setOverview)}>Update context</button></div>
+    <div className="decision-controls"><label>Crop<select value={selectedCrop ?? ""} onChange={(event) => setSelectedCrop(event.target.value || undefined)}>{crops.map((crop) => <option value={crop.slug} key={crop.slug}>{crop.name}</option>)}</select></label><label>Acres<input type="number" min="1" value={acres} onChange={(event) => setAcres(Number(event.target.value) || 1)} /></label><label>Crop stage<select value={stage} onChange={(event) => setStage(event.target.value)}><option value="unspecified">Unspecified</option><option value="planting">Planting</option><option value="vegetative">Vegetative</option><option value="reproductive">Reproductive</option><option value="maturity">Maturity</option><option value="harvest">Harvest</option></select></label><button onClick={() => decisionApi.overview(stateCode, selectedCrop, acres, stage).then(setOverview)}>Update context</button></div>
+    <div className="crop-cycle"><div><strong>Typical {overview?.cropName ?? "crop"} cycle</strong><span>Approximate days after planting; local variety, planting date, and weather shift timing.</span></div><ol>{cycle.map((phase) => <li className={stage === phase.stage ? "active" : ""} key={phase.stage}><i /><strong>{phase.label}</strong><span>{phase.timing}</span></li>)}</ol></div>
     {error && <div className="resource-message error">{error}</div>}{loading && !overview && <div className="resource-message">Calculating decision context…</div>}
     {recommendation && <>
       <div className="risk-score-grid">{recommendation.risks.map((risk) => <article key={risk.key}><span>{risk.label}</span><strong>{risk.score}</strong><i><b style={{ width: `${risk.score}%` }} /></i><small>{risk.explanation}</small></article>)}</div>

@@ -115,7 +115,7 @@ export function DashboardPage() {
           <WeatherImpactPanel weather={weather.data} isLoading={weather.isLoading} error={weather.error} onRetry={() => void weather.reload()} />
           <ChatPanel stateCode={selectedStateCode} stateName={state.data?.stateName} commoditySlug={state.data?.topCommodity.commoditySlug} />
         </section>
-        <DecisionSupportPanel stateCode={selectedStateCode} cropSlug={state.data?.topCommodity.commoditySlug} />
+        <DecisionSupportPanel stateCode={selectedStateCode} cropSlug={state.data?.topCommodity.commoditySlug} crops={state.data?.production.filter((item) => item.category !== "LIVESTOCK").map((item) => ({ slug: item.commoditySlug, name: item.commodityName })) ?? []} />
         <CropTradePanel trade={cropTrade.data} isLoading={cropTrade.isLoading} error={cropTrade.error} />
         <PriceGrowthPanel growth={priceGrowth.data} isLoading={priceGrowth.isLoading} error={priceGrowth.error} />
         <FarmResourcesPanel selectedStateCode={selectedStateCode} />

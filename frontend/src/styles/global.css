@@ -246,6 +246,11 @@ button:focus-visible, input:focus-visible, [role="button"]:focus-visible { outli
 .decision-controls label { display: grid; gap: 4px; color: var(--muted); font-size: .54rem; font-weight: 750; text-transform: uppercase; }
 .decision-controls input, .decision-controls select, .scenario-inputs input { border: 1px solid var(--border); border-radius: 8px; padding: 7px 9px; background: #fbfcfa; color: var(--ink); font: inherit; font-size: .62rem; }
 .decision-controls button, .scenario-tool > button { border: 0; border-radius: 8px; padding: 8px 11px; background: var(--deep-green); color: #fff; font-size: .6rem; font-weight: 750; }
+.crop-cycle { margin-top: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 11px; background: #fbfcfa; }
+.crop-cycle > div { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }.crop-cycle > div strong { font-size: .65rem; }.crop-cycle > div span { color: var(--muted); font-size: .5rem; }
+.crop-cycle ol { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; margin: 11px 0 0; padding: 0; list-style: none; }
+.crop-cycle li { position: relative; display: grid; gap: 3px; padding: 13px 8px 0; border-top: 2px solid #dfe6dc; color: var(--muted); }.crop-cycle li i { position: absolute; top: -5px; left: 8px; width: 8px; height: 8px; border: 2px solid #dfe6dc; border-radius: 50%; background: #fff; }.crop-cycle li strong { font-size: .54rem; }.crop-cycle li span { font-size: .47rem; }
+.crop-cycle li.active { border-color: var(--green); color: var(--green); }.crop-cycle li.active i { border-color: var(--green); background: var(--green); }
 .risk-score-grid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 8px; margin-top: 14px; }
 .risk-score-grid article { display: grid; grid-template-columns: 1fr auto; gap: 5px 8px; padding: 11px; border: 1px solid var(--border); border-radius: 11px; background: #fbfcfa; }
 .risk-score-grid span { color: var(--muted); font-size: .56rem; font-weight: 750; }.risk-score-grid strong { color: var(--ink); font-size: .9rem; }
