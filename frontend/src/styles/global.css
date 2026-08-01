@@ -190,12 +190,12 @@ button:focus-visible, input:focus-visible, [role="button"]:focus-visible { outli
 .live-pill.offline { background: #fff0ef; color: #8b3f3f; }
 .live-pill.offline > span { background: #d15c53; box-shadow: 0 0 0 4px rgba(209,92,83,.12); }
 .state-production-caption { display: block; margin-top: 5px; color: var(--muted); font-size: .7rem; }
-.chat-messages { flex: 1; min-height: 210px; max-height: 276px; overflow: auto; padding: 13px 2px; display: flex; flex-direction: column; gap: 9px; }
-.chat-message { display: flex; gap: 7px; max-width: 92%; }
+.chat-messages { flex: 1 1 auto; min-height: 210px; overflow-y: auto; overflow-x: hidden; padding: 13px 2px; display: flex; flex-direction: column; gap: 9px; }
+.chat-message { flex: 0 0 auto; display: flex; gap: 7px; max-width: 92%; }
 .chat-message.user { margin-left: auto; flex-direction: row-reverse; }
 .message-avatar { width: 25px; height: 25px; flex: none; display: grid; place-items: center; border-radius: 9px; background: #edf1eb; color: var(--green); }
 .chat-message.user .message-avatar { background: var(--deep-green); color: #fff; }
-.chat-message > div { padding: 9px 11px; border-radius: 5px 13px 13px; background: #f0f4ed; }
+.chat-message > div { min-width: 0; padding: 9px 11px; border-radius: 5px 13px 13px; background: #f0f4ed; overflow-wrap: anywhere; }
 .chat-message.user > div { background: var(--deep-green); color: #fff; border-radius: 13px 5px 13px 13px; }
 .chat-message p { margin: 0; font-size: .69rem; line-height: 1.48; }
 .chat-citations { display: grid; gap: 3px; margin-top: 7px; padding-top: 6px; border-top: 1px solid rgba(39,76,47,.12); }
