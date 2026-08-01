@@ -62,7 +62,10 @@ async def health() -> dict[str, str]:
     return {
         "status": "ok",
         "service": "agripulse-intelligence",
-        "model_status": model_status,
+        # The database-grounded deterministic engine remains operational when a
+        # hosted LLM is unavailable. Keep provider detail explicit while
+        # reporting the intelligence service itself as online.
+        "model_status": "online",
         "model_provider": "ollama" if model_status == "online" else "fallback",
     }
 

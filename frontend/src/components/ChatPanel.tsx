@@ -29,13 +29,10 @@ export function ChatPanel({ compact = false, commoditySlug, stateCode, stateName
 
   useEffect(() => {
     let active = true;
-    const controller = new AbortController();
-
-    fetch("http://localhost:8000/health", { signal: controller.signal })
-      .then(async (response) => {
-        const payload = (await response.json().catch(() => ({ model_status: "offline" }))) as { model_status?: string };
+    chatApi.health()
+      .then((payload) => {
         if (!active) return;
-        setModelStatus(response.ok && payload.model_status === "online" ? "online" : "offline");
+        setModelStatus(payload.model_status === "online" ? "online" : "offline");
       })
       .catch(() => {
         if (active) setModelStatus("offline");
@@ -43,7 +40,6 @@ export function ChatPanel({ compact = false, commoditySlug, stateCode, stateName
 
     return () => {
       active = false;
-      controller.abort();
     };
   }, []);
   async function submitMessage(message: string): Promise<void> {

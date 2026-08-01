@@ -16,6 +16,10 @@ function detectState(message: string, explicit?: string): string | undefined {
 }
 
 export class ChatService {
+  health(): Promise<{ status: string; model_status: string; model_provider: string }> {
+    return intelligenceClient.health();
+  }
+
   async answer(input: ChatRequest): Promise<ChatResponse> {
     const recentMessages = await chatRepository.findRecentContext(input.sessionId);
     const priorMetadata = [...recentMessages].reverse().find((message) => message.metadata)?.metadata as

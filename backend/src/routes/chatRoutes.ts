@@ -6,6 +6,8 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 
 export const chatRoutes = Router();
 
+chatRoutes.get("/health", asyncHandler(chatController.health.bind(chatController)));
+
 chatRoutes.post(
   "/",
   validateRequest({ body: chatRequestSchema }),

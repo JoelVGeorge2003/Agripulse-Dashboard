@@ -23,7 +23,17 @@ async function serviceRequest<T>(path: string, body: object, headers: Record<str
   return response.json() as Promise<T>;
 }
 
+async function serviceHealth(): Promise<{ status: string; model_status: string; model_provider: string }> {
+  const response = await fetch(`${env.INTELLIGENCE_SERVICE_URL}/health`, {
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(Math.min(env.INTELLIGENCE_TIMEOUT_MS, 10_000))
+  });
+  if (!response.ok) throw new Error(`Intelligence service returned HTTP ${response.status}`);
+  return response.json() as Promise<{ status: string; model_status: string; model_provider: string }>;
+}
+
 export const intelligenceClient = {
+  health: serviceHealth,
   answerChat(input: ChatRequest): Promise<ChatResponse> {
     return serviceRequest<ChatResponse>("/chat", {
       message: input.message,
