@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Builds
+**/dist/
+**/build/
+**/.vite/
+
+# Prisma
+backend/src/generated/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Coverage
+coverage/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Local database data
+postgres-data/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# TypeScript incremental cache
+*.tsbuildinfo

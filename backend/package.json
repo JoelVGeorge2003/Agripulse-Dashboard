@@ -1,0 +1,41 @@
+{
+  "name": "@agripulse/backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "db:generate": "prisma generate --schema=../database/schema.prisma",
+    "db:migrate": "prisma migrate dev --schema=../database/schema.prisma",
+    "db:deploy": "prisma migrate deploy --schema=../database/schema.prisma",
+    "db:seed": "tsx ../database/seed/seed.ts",
+    "db:studio": "prisma studio --schema=../database/schema.prisma"
+  },
+  "prisma": {
+    "seed": "tsx ../database/seed/seed.ts"
+  },
+  "dependencies": {
+    "@agripulse/shared": "1.0.0",
+    "@prisma/client": "^6.19.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.1.0",
+    "morgan": "^1.10.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.1",
+    "@types/morgan": "^1.9.9",
+    "@types/node": "^22.15.0",
+    "prisma": "^6.19.3",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}

@@ -1,0 +1,96 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: agripulse-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama-data:/root/.ollama
+    ports:
+      - "11434:11434"
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: agripulse-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: agripulse
+      POSTGRES_USER: agripulse
+      POSTGRES_PASSWORD: agripulse
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agripulse -d agripulse"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  intelligence:
+    build:
+      context: ./intelligence
+    container_name: agripulse-intelligence
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: postgresql://agripulse:agripulse@postgres:5432/agripulse
+      CHAT_PROVIDER: ollama
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: llama3.2:3b
+      OLLAMA_TIMEOUT_SECONDS: 60
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    ports:
+      - "8000:8000"
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: agripulse-backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://agripulse:agripulse@postgres:5432/agripulse?schema=public
+      FRONTEND_ORIGIN: http://localhost:5173
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-change-me}
+      NASS_API_KEY: ${NASS_API_KEY:-}
+      NASS_API_BASE_URL: https://quickstats.nass.usda.gov/api/api_GET/
+      GATS_API_BASE_URL: https://api.fas.usda.gov
+      SYNC_INTERVAL_MINUTES: ${SYNC_INTERVAL_MINUTES:-0}
+      INTELLIGENCE_SERVICE_URL: http://intelligence:8000
+      INTELLIGENCE_TIMEOUT_MS: 75000
+      OPEN_METEO_BASE_URL: https://api.open-meteo.com/v1/forecast
+      NWS_ALERTS_BASE_URL: https://api.weather.gov/alerts/active
+      OPEN_FEMA_BASE_URL: https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries
+      WEATHER_CACHE_MINUTES: 15
+    depends_on:
+      postgres:
+        condition: service_healthy
+      intelligence:
+        condition: service_started
+    ports:
+      - "3000:3000"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: agripulse-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  postgres-data:
+  ollama-data:

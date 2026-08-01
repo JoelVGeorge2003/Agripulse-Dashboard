@@ -1,0 +1,28 @@
+{
+  "name": "agripulse-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend",
+    "shared"
+  ],
+  "scripts": {
+    "predev": "npm run build -w @agripulse/shared",
+    "dev": "node scripts/dev.mjs",
+    "build": "npm run build -w @agripulse/shared && npm run build -w @agripulse/backend && npm run build -w @agripulse/frontend",
+    "start": "npm run start -w @agripulse/backend",
+    "db:generate": "npm run db:generate -w @agripulse/backend",
+    "db:migrate": "npm run db:migrate -w @agripulse/backend",
+    "db:deploy": "npm run db:deploy -w @agripulse/backend",
+    "db:seed": "npm run db:seed -w @agripulse/backend",
+    "db:studio": "npm run db:studio -w @agripulse/backend",
+    "lint": "npm run lint -w @agripulse/frontend && npm run lint -w @agripulse/backend",
+    "postinstall": "npm run build -w @agripulse/shared && npm run db:generate -w @agripulse/backend",
+    "dev:intelligence": "cd intelligence && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
+    "check:python": "python -m py_compile intelligence/app/*.py"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  }
+}

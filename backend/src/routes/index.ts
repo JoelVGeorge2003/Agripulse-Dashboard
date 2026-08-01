@@ -1,0 +1,28 @@
+import { Router } from "express";
+import { healthController } from "../controllers/healthController.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { adminRoutes } from "./adminRoutes.js";
+import { chatRoutes } from "./chatRoutes.js";
+import { commodityRoutes } from "./commodityRoutes.js";
+import { dashboardRoutes } from "./dashboardRoutes.js";
+import { mapRoutes } from "./mapRoutes.js";
+import { priceRoutes } from "./priceRoutes.js";
+import { stateRoutes } from "./stateRoutes.js";
+import { weatherRoutes } from "./weatherRoutes.js";
+import { tradeRoutes } from "./tradeRoutes.js";
+import { resourceRoutes } from "./resourceRoutes.js";
+import { decisionRoutes } from "./decisionRoutes.js";
+
+export const apiRouter = Router();
+apiRouter.get("/health", asyncHandler(healthController.check.bind(healthController)));
+apiRouter.use("/dashboard", dashboardRoutes);
+apiRouter.use("/commodities", commodityRoutes);
+apiRouter.use("/prices", priceRoutes);
+apiRouter.use("/map", mapRoutes);
+apiRouter.use("/states", stateRoutes);
+apiRouter.use("/weather", weatherRoutes);
+apiRouter.use("/trade", tradeRoutes);
+apiRouter.use("/resources", resourceRoutes);
+apiRouter.use("/decisions", decisionRoutes);
+apiRouter.use("/chat", chatRoutes);
+apiRouter.use("/admin", adminRoutes);
