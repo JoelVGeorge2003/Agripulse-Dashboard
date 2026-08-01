@@ -11,12 +11,65 @@ from .rag_service import search
 from .specialized_model import generate
 
 
+REGION_PROFILES = {
+    "midwest": {
+        "name": "Midwest", "states": {"IL", "IN", "IA", "MI", "MN", "MO", "OH", "WI"},
+        "heat_offset": 0, "water_factor": 0.9, "flood_factor": 1.1, "disease_factor": 1.15,
+        "url": "https://www.climatehubs.usda.gov/hubs/midwest",
+    },
+    "northern_plains": {
+        "name": "Northern Plains", "states": {"CO", "MT", "NE", "ND", "SD", "WY"},
+        "heat_offset": 1, "water_factor": 1.2, "flood_factor": 0.85, "disease_factor": 0.85,
+        "url": "https://www.climatehubs.usda.gov/hubs/northern-plains",
+    },
+    "southern_plains": {
+        "name": "Southern Plains", "states": {"KS", "OK", "TX"},
+        "heat_offset": 3, "water_factor": 1.25, "flood_factor": 0.9, "disease_factor": 0.9,
+        "url": "https://www.climatehubs.usda.gov/hubs/southern-plains",
+    },
+    "southeast": {
+        "name": "Southeast", "states": {"AL", "AR", "FL", "GA", "KY", "LA", "MS", "NC", "SC", "TN", "VA"},
+        "heat_offset": 2, "water_factor": 1.0, "flood_factor": 1.15, "disease_factor": 1.25,
+        "url": "https://www.climatehubs.usda.gov/hubs/southeast",
+    },
+    "northeast": {
+        "name": "Northeast", "states": {"CT", "DE", "ME", "MD", "MA", "NH", "NJ", "NY", "PA", "RI", "VT", "WV"},
+        "heat_offset": -1, "water_factor": 0.9, "flood_factor": 1.1, "disease_factor": 1.15,
+        "url": "https://www.climatehubs.usda.gov/hubs/northeast",
+    },
+    "northwest": {
+        "name": "Northwest", "states": {"AK", "ID", "OR", "WA"},
+        "heat_offset": -2, "water_factor": 1.1, "flood_factor": 0.9, "disease_factor": 0.9,
+        "url": "https://www.climatehubs.usda.gov/hubs/northwest",
+    },
+    "southwest": {
+        "name": "Southwest", "states": {"AZ", "CA", "HI", "NV", "NM", "UT"},
+        "heat_offset": 4, "water_factor": 1.35, "flood_factor": 0.75, "disease_factor": 0.75,
+        "url": "https://www.climatehubs.usda.gov/hubs/southwest",
+    },
+}
+
+CROP_HEAT_THRESHOLDS = {
+    "corn": 90, "soybeans": 91, "wheat": 88, "cotton": 95, "sorghum": 96,
+    "rice": 94, "barley": 87, "oats": 86, "potatoes": 85, "peanuts": 94,
+}
+
+
+def regional_profile(state_code: str) -> dict:
+    for profile in REGION_PROFILES.values():
+        if state_code.upper() in profile["states"]:
+            return profile
+    return {"name": "United States", "heat_offset": 0, "water_factor": 1, "flood_factor": 1, "disease_factor": 1, "url": "https://www.climatehubs.usda.gov/"}
+
+
 def clamp(value: float) -> int:
     return max(0, min(100, round(value)))
 
 
 def sources(context: DecisionContext) -> list[dict]:
     result = [{"name": "Open-Meteo seven-day forecast", "url": "https://open-meteo.com/"}]
+    region = regional_profile(context.state_code)
+    result.append({"name": f'USDA {region["name"]} Climate Hub guidance', "url": region["url"]})
     if context.production_value is not None:
         result.append({"name": "USDA NASS Quick Stats production", "url": "https://quickstats.nass.usda.gov/"})
     if context.crop_price is not None:
@@ -25,21 +78,22 @@ def sources(context: DecisionContext) -> list[dict]:
 
 
 def score_risks(context: DecisionContext) -> RiskResponse:
+    region = regional_profile(context.state_code)
     rain = sum(day.precipitation_inches for day in context.daily)
     et = sum(day.evapotranspiration_inches for day in context.daily)
     hottest = max((day.temperature_max_f for day in context.daily), default=context.current_temperature_f)
     wet_days = sum(day.precipitation_inches >= .25 for day in context.daily)
     high_humidity = context.relative_humidity_percent >= 85
     soil = context.soil_moisture
-    heat_threshold = 90 if context.crop_slug in {"corn", "soybeans", "wheat"} else 94
+    heat_threshold = CROP_HEAT_THRESHOLDS.get(context.crop_slug, 92) + region["heat_offset"]
 
-    water = clamp(18 + max(0, hottest - 85) * 3 + max(0, et - rain) * 24 + (max(0, .18 - soil) * 180 if soil is not None else 8))
+    water = clamp((18 + max(0, hottest - 85) * 3 + max(0, et - rain) * 24 + (max(0, .18 - soil) * 180 if soil is not None else 8)) * region["water_factor"])
     heat = clamp(max(0, hottest - heat_threshold) * 7 + sum(day.temperature_max_f >= heat_threshold for day in context.daily) * 6)
-    flood = clamp(rain * 25 + wet_days * 6 + (25 if soil is not None and soil >= .35 else 0))
-    disease = clamp((22 if high_humidity else 8) + wet_days * 11 + max(0, rain - 1) * 7)
+    flood = clamp((rain * 25 + wet_days * 6 + (25 if soil is not None and soil >= .35 else 0)) * region["flood_factor"])
+    disease = clamp(((22 if high_humidity else 8) + wet_days * 11 + max(0, rain - 1) * 7) * region["disease_factor"])
     harvest = clamp(rain * 22 + wet_days * 9 + (12 if context.crop_stage.lower() in {"harvest", "maturity", "mature"} else 0))
     risks = [
-        RiskScore(key="water_stress", label="Water stress", score=water, explanation=f"Forecast water balance is {rain - et:+.2f} in; maximum temperature is {hottest:.0f}°F."),
+        RiskScore(key="water_stress", label="Water stress", score=water, explanation=f'{region["name"]} adjustment applied: forecast water balance is {rain - et:+.2f} in; maximum temperature is {hottest:.0f}°F.'),
         RiskScore(key="heat_stress", label="Heat stress", score=heat, explanation=f"Forecast maximum of {hottest:.0f}°F is compared with a {heat_threshold}°F {context.crop_name} screening threshold."),
         RiskScore(key="flood", label="Flood", score=flood, explanation=f"The forecast contains {rain:.2f} in across {wet_days} materially wet day(s)."),
         RiskScore(key="disease", label="Disease", score=disease, explanation=f"Humidity is {context.relative_humidity_percent:.0f}% with {wet_days} wet day(s), indicating leaf-wetness conditions."),
@@ -48,8 +102,8 @@ def score_risks(context: DecisionContext) -> RiskResponse:
     missing = sum(value is None for value in [context.soil_moisture, context.crop_price, context.yield_per_acre])
     confidence = clamp(94 - missing * 8 - (8 if context.crop_stage == "unspecified" else 0))
     explainability = Explainability(
-        inputs={"rainfallInches": round(rain, 3), "evapotranspirationInches": round(et, 3), "maximumTemperatureF": hottest, "humidityPercent": context.relative_humidity_percent, "soilMoisture": soil, "cropStage": context.crop_stage},
-        rules_used=["Deterministic v1 thresholds combine seven-day rain, reference evapotranspiration, heat, humidity, soil moisture and crop stage.", "Every score is clamped to 0–100; no machine-learning prediction is used."],
+        inputs={"region": region["name"], "stateCode": context.state_code, "rainfallInches": round(rain, 3), "evapotranspirationInches": round(et, 3), "maximumTemperatureF": hottest, "humidityPercent": context.relative_humidity_percent, "soilMoisture": soil, "cropStage": context.crop_stage},
+        rules_used=[f'{region["name"]} USDA Climate Hub profile adjusts water, flood, disease, and crop heat screening.', "Deterministic v2 thresholds combine seven-day rain, reference evapotranspiration, crop-specific heat, humidity, soil moisture and crop stage.", "Every score is clamped to 0–100; no machine-learning prediction is used."],
         sources=sources(context),
         limitations=["State representative weather is not field-level weather.", "Humidity and rainfall provide indirect disease and field-access indicators.", "A local soil reading and crop growth stage improve confidence."],
     )
@@ -57,13 +111,14 @@ def score_risks(context: DecisionContext) -> RiskResponse:
 
 
 async def recommendation(context: DecisionContext, persist: bool = True) -> RecommendationResponse:
+    region = regional_profile(context.state_code)
     risk_result = score_risks(context)
     by_key = {item.key: item for item in risk_result.risks}
     rain_24 = context.daily[0].precipitation_inches if context.daily else 0
     highest = max(risk_result.risks, key=lambda item: item.score)
     if rain_24 >= .5 and by_key["water_stress"].score < 45:
         action = "Delay irrigation for 24 hours"
-        reason = f"The next forecast day includes {rain_24:.2f} in of rain and water-stress risk is {by_key['water_stress'].score}/100."
+        reason = f'The next forecast day includes {rain_24:.2f} in of rain and {region["name"]}-adjusted water-stress risk is {by_key["water_stress"].score}/100.'
         impact = {"waterSavingsPercent": 15, "riskAvoided": "Unnecessary irrigation and field traffic"}
         alternative = "Use a reduced irrigation amount only if field inspection shows visible stress."
     elif highest.key == "water_stress":
@@ -131,7 +186,9 @@ async def simulate(request: ScenarioRequest) -> ScenarioResponse:
 
 async def copilot(request: CopilotRequest) -> CopilotResponse:
     rec = await recommendation(request.context)
-    retrieved = await search(request.question, request.context.crop_slug, request.context.state_code, 5)
+    region = regional_profile(request.context.state_code)
+    retrieval_query = f"{request.question} {region['name']} {request.context.state_name} {request.context.crop_name} irrigation harvest drought heat flood disease market"
+    retrieved = await search(retrieval_query, request.context.crop_slug, request.context.state_code, 5)
     question = request.question.lower()
     explanation = rec.reason
     if "sell" in question:
@@ -140,10 +197,30 @@ async def copilot(request: CopilotRequest) -> CopilotResponse:
         else:
             action = "Use staged selling rather than an all-at-once sale"
             explanation = f"The stored price is {request.context.crop_price:.2f} {request.context.price_unit or ''}; the prototype has no futures, basis, storage-cost, or contract data to justify a definitive sell-or-wait call."
+    elif "irrigat" in question or "water" in question:
+        water = next(item for item in rec.risks if item.key == "water_stress")
+        rain_24 = request.context.daily[0].precipitation_inches if request.context.daily else 0
+        if rain_24 >= .35 and water.score < 55:
+            action = "Delay irrigation for 24 hours and verify field moisture after rainfall"
+            explanation = f'{region["name"]} conditions show {rain_24:.2f} in forecast next day and water-stress risk of {water.score}/100.'
+        elif water.score >= 55:
+            action = "Check root-zone moisture today and irrigate the driest fields first"
+            explanation = f'{region["name"]}-adjusted water-stress risk is {water.score}/100. Confirm with a field or sensor reading before applying water.'
+        else:
+            action = "Hold the current irrigation schedule pending a field moisture check"
+            explanation = f'Water-stress risk is {water.score}/100 and forecast evidence does not support an urgent irrigation change.'
+    elif "harvest" in question:
+        harvest = next(item for item in rec.risks if item.key == "harvest_delay")
+        action = "Prioritize harvest-ready, poorly drained fields" if harvest.score >= 50 else "Keep the planned harvest sequence and reassess tomorrow"
+        explanation = f'{region["name"]} harvest-delay risk is {harvest.score}/100. {harvest.explanation}'
+    elif "biggest risk" in question or "main risk" in question:
+        highest = max(rec.risks, key=lambda item: item.score)
+        action = f"Prioritize monitoring for {highest.label.lower()}"
+        explanation = f'{highest.label} is the leading {region["name"]}-adjusted risk at {highest.score}/100. {highest.explanation}'
     else:
         action = rec.action
     baseline_action = action
-    generated_by, model = "deterministic", "decision-engine-v1"
+    generated_by, model = "deterministic", "regional-decision-engine-v2"
     retrieved_sources = [{"name": item.title, "url": item.source_url, "chunkId": item.chunk_id} for item in retrieved.results]
     cited_ids: list[str] = []
     try:
