@@ -38,3 +38,4 @@ __pycache__/
 
 # TypeScript incremental cache
 *.tsbuildinfo
+.vercel
